@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Drug Regulatory Classifier</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f4f8;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+      color: #1a202c;
+    }
+    header { text-align: center; margin-bottom: 2rem; }
+    header h1 { font-size: 1.8rem; font-weight: 700; color: #1a365d; }
+    header p  { font-size: 0.95rem; color: #4a5568; margin-top: 0.4rem; }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      padding: 2rem;
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    .section-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: #718096;
+      margin: 1.5rem 0 0.75rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .section-title:first-of-type { margin-top: 0; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 1rem;
+    }
+
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    label { font-size: 0.78rem; font-weight: 600; color: #4a5568; }
+
+    input[type="number"], select {
+      padding: 0.5rem 0.7rem;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      color: #1a202c;
+      background: #f7fafc;
+      outline: none;
+      width: 100%;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input[type="number"]:focus, select:focus {
+      border-color: #4299e1;
+      box-shadow: 0 0 0 3px rgba(66,153,225,0.15);
+      background: #fff;
+    }
+    .hint { font-size: 0.68rem; color: #a0aec0; }
+
+    button[type="submit"] {
+      width: 100%;
+      margin-top: 1.5rem;
+      padding: 0.85rem;
+      background: #2b6cb0;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    button[type="submit"]:hover  { background: #2c5282; }
+    button[type="submit"]:active { transform: scale(0.98); }
+
+    /* ── OVERLAY ── */
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .overlay.active { display: flex; }
+
+    /* ── POPUP ── */
+    .popup {
+      background: #fff;
+      border-radius: 20px;
+      padding: 2.5rem 2rem;
+      width: 90%;
+      max-width: 420px;
+      text-align: center;
+      animation: popIn 0.3s ease;
+      position: relative;
+    }
+    @keyframes popIn {
+      from { transform: scale(0.85); opacity: 0; }
+      to   { transform: scale(1);    opacity: 1; }
+    }
+
+    .popup-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      margin: 0 auto 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+    }
+    .popup-icon.success { background: #ebf8ff; }
+    .popup-icon.error   { background: #fff5f5; }
+
+    .popup-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #718096;
+      margin-bottom: 0.5rem;
+    }
+    .popup-result {
+      font-size: 1.9rem;
+      font-weight: 700;
+      color: #1a365d;
+      margin-bottom: 0.5rem;
+      line-height: 1.2;
+    }
+    .popup-conf {
+      font-size: 0.9rem;
+      color: #4a5568;
+      margin-bottom: 0.3rem;
+    }
+    .popup-conf span {
+      font-weight: 700;
+      color: #2b6cb0;
+    }
+    .popup-sub {
+      font-size: 0.78rem;
+      color: #a0aec0;
+      margin-bottom: 1.5rem;
+    }
+    .popup-error-text {
+      font-size: 0.88rem;
+      color: #c53030;
+      margin-bottom: 1.5rem;
+    }
+
+    .popup-close {
+      padding: 0.6rem 2rem;
+      background: #2b6cb0;
+      color: #fff;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .popup-close:hover { background: #2c5282; }
+
+    .popup-close.error-btn { background: #e53e3e; }
+    .popup-close.error-btn:hover { background: #c53030; }
+
+    footer { text-align: center; margin-top: 2rem; font-size: 0.78rem; color: #a0aec0; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Drug Regulatory Classifier</h1>
+  <p>Enter all drug details below to predict its regulatory classification</p>
+</header>
+
+<div class="card">
+  <form action="/predict" method="POST">
+
+    <p class="section-title">Core drug information</p>
+    <div class="grid">
+      <div class="field"><label>Dosage (mg)</label>
+        <input type="number" step="0.01" name="Dosage_mg" placeholder="e.g. 500" required/></div>
+      <div class="field"><label>Price per unit ($)</label>
+        <input type="number" step="0.01" name="Price_Per_Unit" placeholder="e.g. 12.50" required/></div>
+      <div class="field"><label>Production cost ($)</label>
+        <input type="number" step="0.01" name="Production_Cost" placeholder="e.g. 5.00" required/></div>
+      <div class="field"><label>Patent duration (years)</label>
+        <input type="number" step="1" name="Patent_Duration_Years" placeholder="e.g. 10" required/></div>
+      <div class="field"><label>Approval time (months)</label>
+        <input type="number" step="1" name="Approval_Time_Months" placeholder="e.g. 18" required/></div>
+      <div class="field"><label>Clinical trial phase</label>
+        <input type="number" step="1" min="1" max="4" name="Clinical_Trial_Phase" placeholder="1 to 4" required/></div>
+    </div>
+
+    <p class="section-title">Risk & safety scores</p>
+    <div class="grid">
+      <div class="field"><label>Abuse potential score</label>
+        <input type="number" step="0.01" name="Abuse_Potential_Score" placeholder="e.g. 3.5" required/></div>
+      <div class="field"><label>Regulatory risk score</label>
+        <input type="number" step="0.01" name="Regulatory_Risk_Score" placeholder="e.g. 2.1" required/></div>
+      <div class="field"><label>Side effect severity score</label>
+        <input type="number" step="0.01" name="Side_Effect_Severity_Score" placeholder="e.g. 4.0" required/></div>
+      <div class="field"><label>Adverse event reports</label>
+        <input type="number" step="1" name="Adverse_Event_Reports" placeholder="e.g. 120" required/></div>
+      <div class="field"><label>Recall history count</label>
+        <input type="number" step="1" name="Recall_History_Count" placeholder="e.g. 2" required/></div>
+    </div>
+
+    <p class="section-title">Market & sales data</p>
+    <div class="grid">
+      <div class="field"><label>Annual sales volume</label>
+        <input type="number" step="1" name="Annual_Sales_Volume" placeholder="e.g. 50000" required/></div>
+      <div class="field"><label>Marketing spend ($)</label>
+        <input type="number" step="0.01" name="Marketing_Spend" placeholder="e.g. 20000" required/></div>
+      <div class="field"><label>R&D investment (million $)</label>
+        <input type="number" step="0.01" name="RD_Investment_Million" placeholder="e.g. 1.5" required/></div>
+      <div class="field"><label>Competitor count</label>
+        <input type="number" step="1" name="Competitor_Count" placeholder="e.g. 5" required/></div>
+      <div class="field"><label>Brand reputation score</label>
+        <input type="number" step="0.01" name="Brand_Reputation_Score" placeholder="e.g. 7.5" required/></div>
+    </div>
+
+    <p class="section-title">Distribution & coverage (%)</p>
+    <div class="grid">
+      <div class="field"><label>Prescription rate (%)</label>
+        <input type="number" step="0.01" name="Prescription_Rate" placeholder="e.g. 65.0" required/></div>
+      <div class="field"><label>Doctor recommendation rate (%)</label>
+        <input type="number" step="0.01" name="Doctor_Recommendation_Rate" placeholder="e.g. 70.0" required/></div>
+      <div class="field"><label>Insurance coverage (%)</label>
+        <input type="number" step="0.01" name="Insurance_Coverage_Percentage" placeholder="e.g. 80.0" required/></div>
+      <div class="field"><label>Pharmacy distribution (%)</label>
+        <input type="number" step="0.01" name="Pharmacy_Distribution_Percentage" placeholder="e.g. 90.0" required/></div>
+      <div class="field"><label>Hospital distribution (%)</label>
+        <input type="number" step="0.01" name="Hospital_Distribution_Percentage" placeholder="e.g. 55.0" required/></div>
+      <div class="field"><label>Online sales (%)</label>
+        <input type="number" step="0.01" name="Online_Sales_Percentage" placeholder="e.g. 20.0" required/></div>
+      <div class="field"><label>Export percentage (%)</label>
+        <input type="number" step="0.01" name="Export_Percentage" placeholder="e.g. 30.0" required/></div>
+    </div>
+
+    <p class="section-title">Drug properties</p>
+    <div class="grid">
+      <div class="field"><label>Drug form</label>
+        <select name="Drug_Form" required>
+          <option value="" disabled selected>Select</option>
+          <option>Tablet</option><option>Capsule</option><option>Injection</option>
+          <option>Syrup</option><option>Patch</option><option>Cream</option><option>Inhaler</option>
+        </select></div>
+      <div class="field"><label>Therapeutic class</label>
+        <select name="Therapeutic_Class" required>
+          <option value="" disabled selected>Select</option>
+          <option>Analgesic</option><option>Antibiotic</option><option>Antidepressant</option>
+          <option>Antidiabetic</option><option>Antifungal</option><option>Antihypertensive</option>
+          <option>Antiviral</option><option>Cardiovascular</option><option>Sedative</option><option>Vaccine</option>
+        </select></div>
+      <div class="field"><label>Manufacturing region</label>
+        <select name="Manufacturing_Region" required>
+          <option value="" disabled selected>Select</option>
+          <option>North America</option><option>Europe</option><option>Asia</option>
+          <option>South America</option><option>Africa</option>
+        </select></div>
+      <div class="field"><label>Requires cold storage</label>
+        <select name="Requires_Cold_Storage" required>
+          <option value="" disabled selected>Select</option>
+          <option>Yes</option><option>No</option>
+        </select></div>
+      <div class="field"><label>OTC flag</label>
+        <select name="OTC_Flag" required>
+          <option value="" disabled selected>Select</option>
+          <option>Yes</option><option>No</option>
+        </select>
+        <span class="hint">Over-the-counter availability</span></div>
+      <div class="field"><label>High risk substance</label>
+        <select name="High_Risk_Substance" required>
+          <option value="" disabled selected>Select</option>
+          <option>Yes</option><option>No</option>
+        </select></div>
+    </div>
+
+    <button type="submit">Predict regulatory class</button>
+  </form>
+</div>
+
+<!-- ── POPUP OVERLAY ── -->
+<div class="overlay {% if prediction or error %}active{% endif %}" id="overlay">
+  <div class="popup">
+
+    {% if prediction %}
+      <div class="popup-icon success">💊</div>
+      <p class="popup-title">Predicted regulatory class</p>
+      <p class="popup-result">{{ prediction }}</p>
+      {% if confidence %}
+      <p class="popup-conf">Confidence: <span>{{ confidence }}%</span></p>
+      {% endif %}
+      <p class="popup-sub">Based on Logistic Regression model</p>
+      <button class="popup-close" onclick="closePopup()">Close</button>
+    {% endif %}
+
+    {% if error %}
+      <div class="popup-icon error">⚠️</div>
+      <p class="popup-title">Something went wrong</p>
+      <p class="popup-error-text">{{ error }}</p>
+      <button class="popup-close error-btn" onclick="closePopup()">Close</button>
+    {% endif %}
+
+  </div>
+</div>
+
+<footer>Drug Classification ML Project &nbsp;|&nbsp; Built with Flask + Scikit-learn</footer>
+
+<script>
+  function closePopup() {
+    document.getElementById('overlay').classList.remove('active');
+  }
+  window.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closePopup();
+  });
+</script>
+
+</body>
+</html>
